@@ -1,24 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+AI が英文を自動生成するサービス。ユーザーが登録した英単語や英文法から Claude API を使用して英文を生成し、日本語訳と共に表示できます。
 
-## Getting Started
+**技術スタック**: Next.js 16 / TypeScript / Firebase / Claude API / Tailwind CSS
 
-First, run the development server:
+## プロジェクトコマンド一覧
+
+### 開発
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+開発サーバーを起動します。[http://localhost:3000](http://localhost:3000) でアプリケーションにアクセスできます。
+
+### ビルド
+
+```bash
+npm run build
+```
+本番環境用のビルドを実行します。
+
+### 本番実行
+
+```bash
+npm run start
+```
+ビルド済みのアプリケーションを本番環境で実行します。
+
+### コード検査
+
+```bash
+npm run lint
+```
+ESLint を使用してコードの静的解析を実行します。
+
+## Getting Started
+
+開発サーバーを起動するには：
+
+```bash
+npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+その後、`app/page.tsx` を編集してページを開発できます。ファイルを保存すると自動的にページが更新されます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+このプロジェクトは TypeScript、Tailwind CSS、Firebase、Claude API を使用しています。
 
 ## Learn More
 
