@@ -1,9 +1,8 @@
 "use client";
 
-import { signInAnonymously } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
+import { signInAnonymouslyAndCreateUser } from "@/lib/firebase";
 
 export default function Home() {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      await signInAnonymously(auth);
+      await signInAnonymouslyAndCreateUser();
       router.push("/dashboard");
     } catch (err) {
       const errorCode =

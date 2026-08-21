@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { signInAnonymously } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
+import { signInAnonymouslyAndCreateUser } from "@/lib/firebase";
 
 export default function Register() {
   const router = useRouter();
@@ -16,7 +15,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await signInAnonymously(auth);
+      await signInAnonymouslyAndCreateUser();
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof Error && "code" in err && err.code === "auth/operation-not-allowed") {
