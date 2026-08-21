@@ -1,125 +1,139 @@
-"use client";
+ "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+ import { onAuthStateChanged, signOut } from "firebase/auth";
+ import { useRouter } from "next/navigation";
+ import { FormEvent, useEffect, useState } from "react";
+ import { auth } from "@/lib/firebase";
 
-export default function Dashboard() {
-  const [menuOpen, setMenuOpen] = useState(false);
+ export default function Dashboard() {
+   const router = useRouter();
+   const [word, setWord] = useState("");
+   const [words, setWords] = useState<string[]>([]);
+   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  const handleLogout = async () => {
-    // ログアウト処理
-    // 実装予定
-  };
+   useEffect(() => {
+     const unsubscribe = onAuthStateChanged(auth, (user) => {
+       if (!user) {
+         router.replace("/register");
+         return;
+       }
 
-  return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* ヘッダー */}
-      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="text-2xl font-bold text-gray-900 dark:text-white">
-              英文生成ツール
-            </Link>
+       setCheckingAuth(false);
+     });
 
-            <div className="flex items-center gap-4">
-              <nav className="hidden md:flex gap-6">
-                <Link
-                  href="/dashboard/words"
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
-                >
-                  英単語・文法
-                </Link>
-                <Link
-                  href="/dashboard/generate"
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
-                >
-                  英文生成
-                </Link>
-              </nav>
+     return unsubscribe;
+   }, [router]);
 
-              <div className="relative">
-                <button
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                  <span className="hidden sm:inline">メニュー</span>
-                </button>
+   const handleAddWord = (event: FormEvent<HTMLFormElement>) => {
+     event.preventDefault();
+     const normalizedWord = word.trim();
 
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg py-2 z-10 border border-gray-200 dark:border-slate-700">
-                    <Link
-                      href="/dashboard/words"
-                      className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                    >
-                      英単語・文法
-                    </Link>
-                    <Link
-                      href="/dashboard/generate"
-                      className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
-                    >
-                      英文生成
-                    </Link>
-                    <hr className="my-2 border-gray-200 dark:border-slate-700" />
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      ログアウト
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+     if (!normalizedWord) {
+       return;
+     }
 
-      {/* メインコンテンツ */}
-      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-          </div>
+     setWords((currentWords) =>
+       currentWords.includes(normalizedWord)
+         ? currentWords
+         : [...currentWords, normalizedWord],
+     );
+     setWord("");
+   };
 
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            ログイン済み
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-            アカウントにログインしました
-          </p>
+   const handleLogout = async () => {
+     await signOut(auth);
+     router.replace("/register");
+   };
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/dashboard/words"
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-            >
-              英単語・文法を管理
-            </Link>
-            <Link
-              href="/dashboard/generate"
-              className="px-8 py-3 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-semibold rounded-lg transition-colors"
-            >
-              英文を生成
-            </Link>
-          </div>
-        </div>
-      </main>
+   if (checkingAuth) {
+     return (
+       <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
+         <p className="text-gray-600 dark:text-gray-400">読み込み中...</p>
+       </main>
+     );
+   }
 
-      {/* フッター */}
-      <footer className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-gray-600 dark:text-gray-400 text-sm">
-            © 2026 英文生成ツール. All rights reserved.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-}
+   return (
+     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
+       <header className="border-b border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8">
+           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+             英文生成ツール
+           </h1>
+           <button
+             type="button"
+             onClick={handleLogout}
+             className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-slate-700 dark:hover:text-white"
+           >
+             ログアウト
+           </button>
+         </div>
+       </header>
+
+       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+         <div className="mb-8">
+           <p className="mb-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
+             MY WORDS
+           </p>
+           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+             英単語を登録しましょう
+           </h2>
+           <p className="mt-3 text-gray-600 dark:text-gray-400">
+             生成したい英文に使う英単語を入力してください。
+           </p>
+         </div>
+
+         <section className="rounded-xl bg-white p-6 shadow-sm dark:bg-slate-800 sm:p-8">
+           <form onSubmit={handleAddWord} className="flex flex-col gap-3 sm:flex-row">
+             <label htmlFor="word" className="sr-only">
+               英単語
+             </label>
+             <input
+               id="word"
+               type="text"
+               value={word}
+               onChange={(event) => setWord(event.target.value)}
+               placeholder="例: journey"
+               className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-gray-400 dark:focus:border-blue-400 dark:focus:ring-blue-900"
+             />
+             <button
+               type="submit"
+               className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
+             >
+               追加する
+             </button>
+           </form>
+
+           <div className="mt-8 border-t border-gray-200 pt-6 dark:border-slate-700">
+             <div className="mb-4 flex items-center justify-between">
+               <h3 className="font-semibold text-gray-900 dark:text-white">
+                 登録した単語
+               </h3>
+               <span className="text-sm text-gray-500 dark:text-gray-400">
+                 {words.length}語
+               </span>
+             </div>
+
+             {words.length === 0 ? (
+               <p className="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+                 まだ単語が登録されていません
+               </p>
+             ) : (
+               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                 {words.map((registeredWord) => (
+                   <li
+                     key={registeredWord}
+                     className="rounded-lg bg-blue-50 px-4 py-3 font-medium text-blue-900 dark:bg-blue-900/30 dark:text-blue-100"
+                   >
+                     {registeredWord}
+                   </li>
+                 ))}
+               </ul>
+             )}
+           </div>
+         </section>
+       </main>
+     </div>
+   );
+ }
+
