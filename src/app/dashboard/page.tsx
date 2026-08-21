@@ -42,7 +42,7 @@
 
    const handleLogout = async () => {
      await signOut(auth);
-     router.replace("/register");
+    router.replace("/");
    };
 
    if (checkingAuth) {
