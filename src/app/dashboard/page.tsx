@@ -1,15 +1,36 @@
  "use client";
 
+ import {
+   addDoc,
+   collection,
+   deleteDoc,
+   doc,
+   getDocs,
+   query,
+   serverTimestamp,
+   updateDoc,
+   where,
+ } from "firebase/firestore";
  import { onAuthStateChanged, signOut } from "firebase/auth";
  import { useRouter } from "next/navigation";
  import { FormEvent, useEffect, useState } from "react";
- import { auth } from "@/lib/firebase";
+ import { auth, db } from "@/lib/firebase";
+
+ type EnglishWord = {
+   id: string;
+   englishWord: string;
+ };
 
  export default function Dashboard() {
    const router = useRouter();
    const [word, setWord] = useState("");
-   const [words, setWords] = useState<string[]>([]);
+   const [words, setWords] = useState<EnglishWord[]>([]);
    const [checkingAuth, setCheckingAuth] = useState(true);
+   const [savingWord, setSavingWord] = useState(false);
+   const [editingWordId, setEditingWordId] = useState<string | null>(null);
+   const [editingWord, setEditingWord] = useState("");
+   const [processingWordId, setProcessingWordId] = useState<string | null>(null);
+   const [error, setError] = useState("");
 
    useEffect(() => {
      const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -18,26 +39,145 @@
          return;
        }
 
-       setCheckingAuth(false);
+       const loadWords = async () => {
+         try {
+           const wordsQuery = query(
+             collection(db, "englishWord"),
+             where("uid", "==", user.uid),
+           );
+           const wordsSnapshot = await getDocs(wordsQuery);
+           setWords(
+             wordsSnapshot.docs.map((wordDocument) => ({
+               id: wordDocument.id,
+               englishWord: wordDocument.data().englishWord as string,
+             })),
+           );
+         } catch (err) {
+           setError("英単語の読み込みに失敗しました。");
+         } finally {
+           setCheckingAuth(false);
+         }
+       };
+
+       void loadWords();
      });
 
      return unsubscribe;
    }, [router]);
 
-   const handleAddWord = (event: FormEvent<HTMLFormElement>) => {
+   const handleAddWord = async (event: FormEvent<HTMLFormElement>) => {
      event.preventDefault();
      const normalizedWord = word.trim();
 
-     if (!normalizedWord) {
+     if (!normalizedWord || savingWord) {
        return;
      }
 
-     setWords((currentWords) =>
-       currentWords.includes(normalizedWord)
-         ? currentWords
-         : [...currentWords, normalizedWord],
-     );
-     setWord("");
+     const currentUser = auth.currentUser;
+
+     if (!currentUser) {
+       router.replace("/");
+       return;
+     }
+
+    if (words.some((registeredWord) => registeredWord.englishWord === normalizedWord)) {
+       setWord("");
+       return;
+     }
+
+     setError("");
+     setSavingWord(true);
+
+     try {
+       const wordDocument = await addDoc(collection(db, "englishWord"), {
+         englishWord: normalizedWord,
+         uid: currentUser.uid,
+         created: serverTimestamp(),
+       });
+
+       setWords((currentWords) => [
+         ...currentWords,
+         { id: wordDocument.id, englishWord: normalizedWord },
+       ]);
+       setWord("");
+     } catch (err) {
+       setError("英単語の保存に失敗しました。もう一度お試しください。");
+     } finally {
+       setSavingWord(false);
+     }
+   };
+
+   const handleEditStart = (englishWord: EnglishWord) => {
+     setEditingWordId(englishWord.id);
+     setEditingWord(englishWord.englishWord);
+     setError("");
+   };
+
+   const handleEditCancel = () => {
+     setEditingWordId(null);
+     setEditingWord("");
+   };
+
+   const handleUpdateWord = async (wordId: string) => {
+     const normalizedWord = editingWord.trim();
+
+     if (!normalizedWord || processingWordId) {
+       return;
+     }
+
+     if (
+       words.some(
+         (registeredWord) =>
+           registeredWord.id !== wordId && registeredWord.englishWord === normalizedWord,
+       )
+     ) {
+       setError("同じ英単語は登録できません。");
+       return;
+     }
+
+     setError("");
+     setProcessingWordId(wordId);
+
+     try {
+       await updateDoc(doc(db, "englishWord", wordId), {
+         englishWord: normalizedWord,
+       });
+       setWords((currentWords) =>
+         currentWords.map((registeredWord) =>
+           registeredWord.id === wordId
+             ? { ...registeredWord, englishWord: normalizedWord }
+             : registeredWord,
+         ),
+       );
+       handleEditCancel();
+     } catch (err) {
+       setError("英単語の更新に失敗しました。もう一度お試しください。");
+     } finally {
+       setProcessingWordId(null);
+     }
+   };
+
+   const handleDeleteWord = async (wordId: string) => {
+     if (processingWordId) {
+       return;
+     }
+
+     setError("");
+     setProcessingWordId(wordId);
+
+     try {
+       await deleteDoc(doc(db, "englishWord", wordId));
+       setWords((currentWords) =>
+         currentWords.filter((registeredWord) => registeredWord.id !== wordId),
+       );
+       if (editingWordId === wordId) {
+         handleEditCancel();
+       }
+     } catch (err) {
+       setError("英単語の削除に失敗しました。もう一度お試しください。");
+     } finally {
+       setProcessingWordId(null);
+     }
    };
 
    const handleLogout = async () => {
@@ -98,11 +238,18 @@
              />
              <button
                type="submit"
+               disabled={savingWord}
                className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
              >
-               追加する
+               {savingWord ? "保存中..." : "追加する"}
              </button>
            </form>
+
+           {error && (
+             <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+               {error}
+             </p>
+           )}
 
            <div className="mt-8 border-t border-gray-200 pt-6 dark:border-slate-700">
              <div className="mb-4 flex items-center justify-between">
@@ -122,10 +269,63 @@
                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                  {words.map((registeredWord) => (
                    <li
-                     key={registeredWord}
+                     key={registeredWord.id}
                      className="rounded-lg bg-blue-50 px-4 py-3 font-medium text-blue-900 dark:bg-blue-900/30 dark:text-blue-100"
                    >
-                     {registeredWord}
+                     {editingWordId === registeredWord.id ? (
+                       <div className="space-y-3">
+                         <label htmlFor={`edit-word-${registeredWord.id}`} className="sr-only">
+                           英単語を編集
+                         </label>
+                         <input
+                           id={`edit-word-${registeredWord.id}`}
+                           type="text"
+                           value={editingWord}
+                           onChange={(event) => setEditingWord(event.target.value)}
+                           className="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 dark:border-blue-700 dark:bg-slate-700 dark:text-white"
+                         />
+                         <div className="flex gap-2">
+                           <button
+                             type="button"
+                             onClick={() => handleUpdateWord(registeredWord.id)}
+                             disabled={processingWordId === registeredWord.id}
+                             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                           >
+                             {processingWordId === registeredWord.id ? "更新中..." : "更新"}
+                           </button>
+                           <button
+                             type="button"
+                             onClick={handleEditCancel}
+                             disabled={processingWordId === registeredWord.id}
+                             className="rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-600 dark:text-gray-200 dark:hover:bg-slate-500"
+                           >
+                             キャンセル
+                           </button>
+                         </div>
+                       </div>
+                     ) : (
+                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                         <span>{registeredWord.englishWord}</span>
+                         <div className="flex gap-2">
+                           <button
+                             type="button"
+                             onClick={() => handleEditStart(registeredWord)}
+                             disabled={processingWordId !== null}
+                             className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700 dark:text-blue-300 dark:hover:bg-slate-600"
+                           >
+                             編集
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => handleDeleteWord(registeredWord.id)}
+                             disabled={processingWordId !== null}
+                             className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                           >
+                             削除
+                           </button>
+                         </div>
+                       </div>
+                     )}
                    </li>
                  ))}
                </ul>
