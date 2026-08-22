@@ -1,8 +1,45 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { signInAnonymouslyAndCreateUser } from "@/lib/firebase";
 
 export default function Home() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleStart = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await signInAnonymouslyAndCreateUser();
+      router.push("/dashboard");
+    } catch (err) {
+      const errorCode =
+        typeof err === "object" && err !== null && "code" in err
+          ? String(err.code)
+          : "";
+
+      if (errorCode === "auth/operation-not-allowed") {
+        setError("匿名ログインがFirebaseで有効になっていません");
+      } else if (errorCode === "auth/network-request-failed") {
+        setError("Firebaseに接続できませんでした。ネットワークを確認してください");
+      } else if (errorCode === "auth/invalid-api-key") {
+        setError("FirebaseのAPIキー設定が正しくありません");
+      } else if (errorCode === "auth/unauthorized-domain") {
+        setError("このアクセス元がFirebaseで許可されていません");
+      } else {
+        setError(`ログイン処理に失敗しました${errorCode ? `（${errorCode}）` : ""}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="flex flex-col min-h-screen bg-linear-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800">
       <header className="bg-white dark:bg-slate-900 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -48,19 +85,21 @@ export default function Home() {
           </section>
 
           <section className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-            <Link
-              href="/register"
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={loading}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition-colors dark:bg-blue-500 dark:hover:bg-blue-600"
             >
-              会員登録
-            </Link>
-            <Link
-              href="/login"
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-3 px-6 rounded-lg text-center transition-colors dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white"
-            >
-              ログイン
-            </Link>
+              {loading ? "準備中..." : "始める"}
+            </button>
           </section>
+
+          {error && (
+            <p className="text-center text-sm text-red-600 dark:text-red-400" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       </main>
 

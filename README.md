@@ -40,6 +40,9 @@ ESLint を使用してコードの静的解析を実行します。
 npm run dev
 ```
 
+Functionsへのデプロイ
+ firebase deploy --only functions
+
 その後、`app/page.tsx` を編集してページを開発できます。ファイルを保存すると自動的にページが更新されます。
 
 このプロジェクトは TypeScript、Tailwind CSS、Firebase、Claude API を使用しています。
