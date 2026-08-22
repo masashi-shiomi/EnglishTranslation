@@ -13,10 +13,30 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+let firebaseApp: ReturnType<typeof initializeApp>;
+let authInstance: ReturnType<typeof getAuth>;
+let dbInstance: ReturnType<typeof getFirestore>;
 
-export const auth = getAuth(firebaseApp);
-export const db = getFirestore(firebaseApp);
+const initializeFirebase = () => {
+  if (firebaseApp) return;
+  firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  authInstance = getAuth(firebaseApp);
+  dbInstance = getFirestore(firebaseApp);
+};
+
+export const auth = new Proxy({} as any, {
+  get: (target, prop) => {
+    initializeFirebase();
+    return (authInstance as any)[prop];
+  },
+}) as ReturnType<typeof getAuth>;
+
+export const db = new Proxy({} as any, {
+  get: (target, prop) => {
+    initializeFirebase();
+    return (dbInstance as any)[prop];
+  },
+}) as ReturnType<typeof getFirestore>;
 
 export async function signInAnonymouslyAndCreateUser() {
   const credential = await signInAnonymously(auth);
