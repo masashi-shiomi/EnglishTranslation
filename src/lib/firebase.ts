@@ -1,3 +1,5 @@
+"use client";
+
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { signInAnonymously, getAuth } from "firebase/auth";
 import { doc, getFirestore, runTransaction, serverTimestamp } from "firebase/firestore";
